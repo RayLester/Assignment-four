@@ -1,0 +1,49 @@
+---
+title: "Assignment four"
+output: html_notebook
+---
+Start by loading everything that is necessary to start the assignment
+```{r}
+#Loading the training and test libraries as well as the packages I will need
+library(needs)
+needs(tidyverse, magrittr, psych)
+load("eye_FR_testdata-1")
+load("eye_FR_traindata-1")
+```
+Question 3 - explore the data with summary statistics
+```{r}
+#Working with training data set only initially
+summary(traindata)
+#not very useful because outcomes are largely binary
+min(traindata$lineuprt)
+max(traindata$lineuprt)
+#Indicating a huge range 
+describe(traindata$lineuprt)
+#describes data overall
+describeBy(traindata)
+#describes data by lineupacc
+describeBy(traindata, traindata$lineupacc)
+#tells me that 55 people were coded 0, and 62 were coded 1- this corresponds to the lineupacc groups
+table(traindata$lineupacc)
+
+#we need to change variable classes
+#
+traindata.fac.dat <- traindata %>% 
+  mutate(lineupaccfac = as.factor(lineupacc))
+#need to log (reaction time variable)
+traindata.fac.log.dat <- traindata.fac.dat %>% 
+  mutate(ractionlog = log(reactiontime))
+  
+
+#Making a box plot
+traindata %>% 
+  ggplot(aes(y = automatic, x = lineupacc))+
+  geom_boxplot() +
+  gom_jitter(aplpha = 0.4)
+facet_grid(exposure~lieupta)
+
+mosaicplot(~linuppta + exposurre + linupacc, data = traindata)
+#go row by row
+
+```
+
