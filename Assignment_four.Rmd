@@ -3,47 +3,72 @@ title: "Assignment four"
 output: html_notebook
 ---
 Start by loading everything that is necessary to start the assignment
-```{r}
-#Loading the training and test libraries as well as the packages I will need
+```{r getting set up}
+#Loading the packages I will need
 library(needs)
-needs(tidyverse, magrittr, psych)
+needs(tidyverse, magrittr, psych, vcd)
+
+#loading the training and test libraries
 load("eye_FR_testdata-1")
 load("eye_FR_traindata-1")
 ```
 Question 3 - explore the data with summary statistics
 ```{r}
-#Working with training data set only initially
-summary(traindata)
-#not very useful because outcomes are largely binary
-min(traindata$lineuprt)
-max(traindata$lineuprt)
-#Indicating a huge range 
-describe(traindata$lineuprt)
-#describes data overall
-describeBy(traindata)
-#describes data by lineupacc
-describeBy(traindata, traindata$lineupacc)
-#tells me that 55 people were coded 0, and 62 were coded 1- this corresponds to the lineupacc groups
-table(traindata$lineupacc)
+#Work with the training data set only initially
+#first a check of variable class,to see if they have been correctly classified
+#particp = factor -> fine
+#lineuptpta = factor -> fine
+#lineupacc = numeric -> not correct - needs to be changed to a factor
+#exposure = factor -> fine
+#confidence = numeric -> fine
+#lineuprt = numeric -> fine
+#automatic = numberic -> fine
+#face comparison = numeric -> fine
 
-#we need to change variable classes
-#
+#we need to change variable classes for lineupacc
 traindata.fac.dat <- traindata %>% 
   mutate(lineupaccfac = as.factor(lineupacc))
+
+summary(traindata.fac.dat)
+#the output is not very useful. It does show that for line-up perpetrator presence and exposure
+#there were 117 people in total; with 59 for absent and long, and 58 for present and short - 
+#so quite an even split between these four respective groups.Lineupacc is a binary variable so #this information is not very helpful. Confidence looks like it should be fairly normally #distributed  as the median and mean are very similar and there is about 30 points difference to #the 1st and 3rd quartile.The range on line-up reaction time looks large, suggesting this needs #a transformation and/or outliers need to be removed.It also looks like it might be very #positively skewed.The output for face comparison and automatic also is not very useful because of them being based on a likert scale score. The converted lineupacc variable now gives a count of 55 people who identified incorrectly, and 62 who identified correctly.
+
+#describes data overall
+describe(traindata.fac.dat)
+#Again, not very useful and does not say much more than the previous function
+
+
+#describes data by lineupacc
+describeBy(traindata.fac.dat, traindata$lineupacc)
+#This is more useful as the mean of confidence for those incorrectly identifying the target seemed lower (46.76), than for those participants correctly identifying targets (63.88) - suggesting a relationship may exist between confidence and correctly identifying a target. The median of confidence is also quite different between those who incorrectly identify targets (50) and those who correctly identify targets (60) - again suggesting a relationship between these variables.
+#Lineuptpta and exposure were very similar across line-up accuracy groups
+#There was a fair difference in the average reaction time between those who incorrectly identified a target (32265.05s) and those who correctly identified a target (250126.23s). The medians between these two respective groups were also quite different (24265s-inaccurate, and 19905s - accurate)- suggesting that those who correctly identified targets had quicker reaction times than those who incorrectly identified targets.
+#the descriptives for both decision strategies across the two groups seemed quite similar
+
+table(traindata.fac.dat$lineupacc)
+#tells me that 55 people were coded 0, and 62 were coded 1- this corresponds to the lineupacc groups so I have correctly interpreted the descriptives
+
 #need to log (reaction time variable)
 traindata.fac.log.dat <- traindata.fac.dat %>% 
-  mutate(ractionlog = log(reactiontime))
-  
+  mutate(reactionlog = log(lineuprt))
+#checking the range to see if it is less extreme
+range(traindata.fac.log.dat$reactionlog)
+#it is - yay
 
-#Making a box plot
-traindata %>% 
-  ggplot(aes(y = automatic, x = lineupacc))+
+#Making some graphs to do some more exploring
+#here we have swapped around the order of what is usually on the x and the y
+traindata.fac.log.dat %>% 
+  ggplot(aes(y = automatic, x = lineupaccfac))+
   geom_boxplot() +
-  gom_jitter(aplpha = 0.4)
-facet_grid(exposure~lieupta)
+  geom_jitter(alpha = 0.4)+
+facet_grid(exposure~linetpta)
 
-mosaicplot(~linuppta + exposurre + linupacc, data = traindata)
-#go row by row
+
+
+traindata.fac.log.dat %>% 
+  mosaic(~linuppta + exposurre + linupacc, data = traindata)
+#read it row by row
 
 ```
 
