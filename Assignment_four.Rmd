@@ -2,11 +2,11 @@
 title: "Assignment four"
 output: html_notebook
 ---
-Start by loading everything that is necessary to start the assignment
+Start by loading everything that is necessary to complete the assignment
 ```{r getting set up}
 #Loading the packages I will need
 library(needs)
-needs(tidyverse, magrittr, psych, vcd)
+needs(tidyverse, magrittr, psych, caret, broom)
 
 #loading the training and test libraries
 load("eye_FR_testdata-1")
@@ -14,7 +14,8 @@ load("eye_FR_traindata-1")
 ```
 Question 3 - explore the data with summary statistics
 ```{r}
-#Work with the training data set only initially
+#Work with the training dataset only initially
+
 #first a check of variable class,to see if they have been correctly classified
 #particp = factor -> fine
 #lineuptpta = factor -> fine
@@ -22,53 +23,139 @@ Question 3 - explore the data with summary statistics
 #exposure = factor -> fine
 #confidence = numeric -> fine
 #lineuprt = numeric -> fine
-#automatic = numberic -> fine
-#face comparison = numeric -> fine
+#automatic = numeric -> fine
+#facecomparison = numeric -> fine
 
 #we need to change variable classes for lineupacc
 traindata.fac.dat <- traindata %>% 
   mutate(lineupaccfac = as.factor(lineupacc))
 
+#now we explore the data
 summary(traindata.fac.dat)
-#the output is not very useful. It does show that for line-up perpetrator presence and exposure
-#there were 117 people in total; with 59 for absent and long, and 58 for present and short - 
-#so quite an even split between these four respective groups.Lineupacc is a binary variable so #this information is not very helpful. Confidence looks like it should be fairly normally #distributed  as the median and mean are very similar and there is about 30 points difference to #the 1st and 3rd quartile.The range on line-up reaction time looks large, suggesting this needs #a transformation and/or outliers need to be removed.It also looks like it might be very #positively skewed.The output for face comparison and automatic also is not very useful because of them being based on a likert scale score. The converted lineupacc variable now gives a count of 55 people who identified incorrectly, and 62 who identified correctly.
+#the output is not very useful. It does show that for line-up perpetrator presence and exposure there were 117 people in total; with 59 for target absent and long exposure , and 58 for target present and short exposure. This makes sense because there were 117 observation in both training datasets.It also indicates quite an even split between these four respective groups.Lineupacc is a binary variable so this information is not very helpful. Confidence looks like it should be fairly normally distributed  as the median and mean are very similar and there is about 30 points difference to the 1st and 3rd quartile.The range on line-up reaction time looks large, suggesting this needs a transformation and/or outliers need to be removed.It also looks like it might be very positively skewed.The output for face comparison and automatic also is not very useful to us because of both being a likert scale. The converted lineupacc variable now gives a count of 55 people who identified incorrectly, and 62 who identified correctly.
 
 #describes data overall
 describe(traindata.fac.dat)
-#Again, not very useful and does not say much more than the previous function
+#Again, not very useful and does not say much more than the previous function. It does indicate that there is missing data (cases by the looks of things) for the confidence variable though.
 
 
 #describes data by lineupacc
-describeBy(traindata.fac.dat, traindata$lineupacc)
-#This is more useful as the mean of confidence for those incorrectly identifying the target seemed lower (46.76), than for those participants correctly identifying targets (63.88) - suggesting a relationship may exist between confidence and correctly identifying a target. The median of confidence is also quite different between those who incorrectly identify targets (50) and those who correctly identify targets (60) - again suggesting a relationship between these variables.
-#Lineuptpta and exposure were very similar across line-up accuracy groups
-#There was a fair difference in the average reaction time between those who incorrectly identified a target (32265.05s) and those who correctly identified a target (250126.23s). The medians between these two respective groups were also quite different (24265s-inaccurate, and 19905s - accurate)- suggesting that those who correctly identified targets had quicker reaction times than those who incorrectly identified targets.
+describeBy(traindata.fac.dat, traindata.fac.dat$lineupacc)
+#This is more useful as the mean of confidence for those incorrectly identifying the target seemed lower (46.76), than for those participants correctly identifying targets (63.88) - suggesting a relationship may exist between confidence and correctly identifying a target. The median of confidence is also quite different between those who incorrectly identify targets (50) and those who correctly identify targets (70) - again suggesting a relationship between these variables.Specifically, that those who have higher levels of confidence may be more likely to correctly identify whether a target is present or absent in an line-up.
+#There was a fair difference in the average reaction time between those who incorrectly identified a target (32265.05s) and those who correctly identified a target (25016.23s). The medians between these two respective groups were also quite different (24265s-inaccurate, and 19905s - accurate)- suggesting that eye witnesses with quicker reaction times may be more likely to correctly identify whether a target is present or absent.
 #the descriptives for both decision strategies across the two groups seemed quite similar
 
 table(traindata.fac.dat$lineupacc)
-#tells me that 55 people were coded 0, and 62 were coded 1- this corresponds to the lineupacc groups so I have correctly interpreted the descriptives
+#tells me that 55 people were coded 0, and 62 were coded 1- this corresponds to the lineupacc groups - so I have correctly interpreted the descriptives
 
-#need to log (reaction time variable)
+#as the range is so large on the reation time variable , it may be best if we log  it
 traindata.fac.log.dat <- traindata.fac.dat %>% 
   mutate(reactionlog = log(lineuprt))
 #checking the range to see if it is less extreme
 range(traindata.fac.log.dat$reactionlog)
-#it is - yay
+#it is - yay. we will now work with this dataset.
 
-#Making some graphs to do some more exploring
-#here we have swapped around the order of what is usually on the x and the y
+#Make some graphs to do some more exploring
+#here we have swapped around the order of what is usually on the x and the y on purpose
+#focusing first on the decision strategies and their relationship to recording accuracy, bearing in mind whether the target was present or abset and exposure length.
 traindata.fac.log.dat %>% 
   ggplot(aes(y = automatic, x = lineupaccfac))+
   geom_boxplot() +
   geom_jitter(alpha = 0.4)+
-facet_grid(exposure~linetpta)
-
-
+facet_grid(exposure~lineuptpta)
+#This graph shows that when the target was absent and the witness received a long exposure, that those who incorrectly identified the target tended to score slightly higher onthe automatic scale than those who correctly identified the taret. Additionally, when the target was absent and the witness received a short exposure instead, those who correctly identified targets only scored very low on the automatic scale and those who incorrectly identified the target had a much greater range of scores on the automatic scale.
+#Furthermore, when the target was present and the witness received a long exposure, those who correctly identified tended to score higher on the automatic scale than those who incorrectly identified targets.Also, when the target was present but the witness received a short exposure,a similar relationship was found; however those correctly indentifying targets in this condition demonstrated more variance in their scoring than those who didn't.
 
 traindata.fac.log.dat %>% 
-  mosaic(~linuppta + exposurre + linupacc, data = traindata)
-#read it row by row
+  ggplot(aes(y = facecomparison, x = lineupaccfac))+
+  geom_boxplot() +
+  geom_jitter(alpha = 0.4)+
+facet_grid(exposure~lineuptpta)
+#This graph indicates that when the target was absent and the witness receive a long exposure, those correctly identifying this tended to score higher than those who incorrectly identified this.When the target was absent and witnesses received a short exposure, those who correctly and incorrectly identified the target tended to score similarl on face comparison.
+#It also shows that when the target was present and the witnesses received a long exposure, those incorrectly identifying tended to score much higher on the facecomparison scale than those that correctly identified. Additionally, when the target was present and the witnesses received a short exposure,they tende to score fairly similarly again on facecomparison.
+
+#looking at the relationship between our predictors and our dependent variable, bearing in mind whether the target was present or abset and exposure length.
+traindata.fac.log.dat %>%
+  ggplot(aes(y= reactionlog, x = lineupaccfac))+
+  geom_boxplot()+
+  geom_jitter (alpha=0.5)+
+facet_grid(exposure~lineuptpta)
+#This graph shows that when the target was absent, over long and short exposure groups those who correctly and incorrectly identified targets seemed to have fairly similar reaction times. When the target was present, the same relationship seemed to hold - with those accurately and inaccurately identifying targets with even more similar reaction times across long and short exposure conditions.
+
+traindata.fac.log.dat %>%
+  ggplot(aes(y= confidence, x = lineupaccfac))+
+  geom_boxplot()+
+  geom_jitter (alpha=0.5)+
+facet_grid(exposure~lineuptpta)
+#When the target was absent and witnesses received a long exposure, those accurately identifying the target tended to score higher on confidence, than those who inaccurately identified the target. When the exposure was short, those who accurately and inaccurately identified the target scored similarly on confidence, with those accurately identifying the target showing more variance on this scale. 
+#When the target was present, for both the long and short exposure groups, those who correctly identified the target and those who did not scored similarly on the confidence scale - with those inaccurately identifying the target showing more variance on this scale.
+
+```
+
+Question 4 
+```{r}
+#work only with the training set first
+#In this model we wish to see if confidence can predict recording accuracy. 
+#first we add the variables we want to control in a model (this includes interaction terms), then to the same model, we add the confidence predictor
+confidence.mod <- glm(lineupaccfac ~ exposure + automatic + facecomparison + lineuptpta + lineuptpta*automatic + lineuptpta*facecomparison + confidence, family = "binomial", data = traindata.fac.log.dat)
+summary(confidence.mod)
+#This model demonstrates that the two interaction terms are significant, exposure length of time, the automatic decision strategy, and the face comparison decision strategy.The predictor confidence is not significant, thus it does not seem to matter how confident a witness feels they are no better at accurately determining the target than they are at inaccurately determining the target.Also noteworthy, is the large difference between the null deviance and the residual deviance.
+
+#testing the model for significance
+1-pchisq(confidence.mod$deviance,
+         confidence.mod$df.residual)  
+#This returns a high value indicating our model fits adequately.
+
+anova(confidence.mod, test="Chisq")
+#this indicates that by adding exposure, lineuptpta, an the two interaction strategies, the residual deviance significantly dropped. 
+
+#testing the model with the test data set
+#first cleaning the test data set
+cleantest <- testdata %>% 
+  mutate(linupaccfac = as.factor(lineupacc), reactionlog = log(lineuprt))
+
+confidencetest.mod <- glm(linupaccfac ~ exposure + automatic + facecomparison + lineuptpta +lineuptpta*automatic + lineuptpta*facecomparison + confidence, family = "binomial", data = cleantest)
+summary(confidencetest.mod)
+#In this model, the two interaction terms are significant again, as well as exposure length of time, automatic decision strategy, face comparison decision strategy, and confidence. Thus, using this dataset it seems as though witnesses feeling more confidence are more likely to correctly identify the target, and those feeling less confidence are less likely to correctly identify the target. 
+
+#testing the model for significance
+1-pchisq(confidencetest.mod$deviance,
+         confidencetest.mod$df.residual)  
+#This returns a high value indicating our model fits adequately.
+
+anova(confidencetest.mod, test="Chisq")
+#Again we see a large difference between the null deviance and the residual deviance in the model. By adding exposure, lineuptpta, confidence, and the two interaction terms the residual deviance dropped significantly. 
+
+#comparing our training and test models to see if there is a difference
+anova(confidence.mod, confidencetest.mod, test="Chisq")
+
+```
+
+Question 5
+i
+```{r}
+predict(confidencetest.mod, data.frame(confidence > 80), type = "response")
+```
+ii
+```{r}
+x <- predict(confidencetest.mod, 
+        data.frame(confidence > 80), type="response")
+odds <- x/(1-x)  
+print(odds)
+```
+iii
+```{r}
+table(cleantest$lineuptpta, cleantest$linupaccfac)
+#partial odds ratio = 0.38
+```
+b
+```{r}
+pred.mod <- predict(confidencetest.mod, cleantest, type = "response")
+table(round(pred.mod + 0.05), cleantest$linupaccfac)
+confusionMatrix(as.factor(round(pred.mod + 0.05)), as.factor(cleantest$linupaccfac))
+#The model predicted that 55 people would correctly idenfity the target, and of those 48 actually did while 7 did not.The model predictedthat 45 people would not correctly identify the target, and of those 39 did not and 6 did.
+#Sensitivity is high at 88.89%. 
+#specificity is also high at 84.78%
 
 ```
 
